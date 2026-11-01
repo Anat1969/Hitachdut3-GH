@@ -4,245 +4,636 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>יומן ביקורי אתר</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Hebrew:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+  /* אסימוני עיצוב: לוח "בטון ופלדה" */
   :root {
-    --bg: #f6f5f2;
+    --paper: #f4f2ee;        /* רקע: נייר תוכניות */
     --card: #ffffff;
-    --text: #1d1d1b;
-    --muted: #6b6b66;
-    --line: #dddcd6;
-    --navy: #1f3a5f;
-    --open: #c96a12;
-    --open-bg: #fdf0e3;
-    --closed: #7a7a75;
-    --closed-bg: #ececea;
+    --ink: #1b1d21;          /* טקסט ראשי */
+    --graphite: #63666d;     /* טקסט משני */
+    --line: #d9d6cf;
+    --steel: #1f3a5f;        /* פעולה ראשית, סרגל */
+    --rust: #b8540e;         /* ממצא פתוח */
+    --rust-bg: #fbeee3;
+    --concrete: #74767a;     /* ממצא סגור */
+    --concrete-bg: #ebeae7;
+    --sage: #2f6b46;         /* פרויקט שהסתיים */
+    --sage-bg: #e5f0e8;
+    --amber: #8a5a00;        /* פרויקט בתהליך */
+    --amber-bg: #fdf3d8;
+    --alert: #a3201b;
+    --alert-bg: #fbe9e8;
+    --shadow: 0 1px 2px rgba(20, 24, 31, .08), 0 2px 6px rgba(20, 24, 31, .06);
+    --shadow-up: 0 2px 4px rgba(20, 24, 31, .10), 0 6px 14px rgba(20, 24, 31, .10);
+    --sans: "IBM Plex Sans Hebrew", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    --mono: "IBM Plex Mono", "IBM Plex Sans Hebrew", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-    font-size: 17px;
-    line-height: 1.5;
-    direction: rtl;
-    text-align: right;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 17px; line-height: 1.5;
+    direction: rtl; text-align: right;
   }
-  main { max-width: 640px; margin: 0 auto; padding: 16px; }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  h1 { margin: 0; font-size: 24px; color: var(--navy); }
-  .count { color: var(--muted); font-size: 15px; }
-  .count b { color: var(--open); }
-  form, .item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+
+  /* סרגל עליון קבוע */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--steel); color: #fff; box-shadow: var(--shadow-up);
+  }
+  .topbar-in {
+    max-width: 680px; margin: 0 auto; padding: 10px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .brand { color: #fff; text-decoration: none; font-weight: 700; font-size: 19px; }
+  .saved {
+    margin-inline-start: auto; font-family: var(--mono); font-size: 13px;
+    opacity: 0; transition: opacity .3s;
+  }
+  .saved.show { opacity: 1; }
+
+  main { max-width: 680px; margin: 0 auto; padding: 16px; }
+
+  /* שורת סיכום */
+  .summary { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 16px; }
+  .stat { display: grid; }
+  .label { font-family: var(--mono); font-size: 12px; color: var(--graphite); letter-spacing: .02em; }
+  .num { font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .num.rust { color: var(--rust); }
+
+  .notice { padding: 10px 12px; margin-bottom: 16px; font-size: 15px; }
+  .notice.alert { background: var(--alert-bg); color: var(--alert); border-inline-start: 4px solid var(--alert); }
+
+  /* טופס */
+  form, .project { background: var(--card); box-shadow: var(--shadow); }
   form { padding: 16px; display: grid; gap: 12px; margin-bottom: 24px; }
-  label { display: grid; gap: 4px; font-weight: 600; font-size: 15px; }
-  input, textarea, select {
-    font: inherit; width: 100%; padding: 12px; direction: rtl; text-align: right;
-    border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text);
+  .form-title { margin: 0; font-size: 18px; }
+  label.field { display: grid; gap: 4px; }
+  label.field > span { font-family: var(--mono); font-size: 12px; color: var(--graphite); }
+  input[type=text], input[type=date], textarea, select {
+    font: inherit; width: 100%; min-width: 0; padding: 11px 12px; direction: rtl; text-align: right;
+    border: 1px solid var(--line); border-radius: 0; background: #fff; color: var(--ink);
   }
-  textarea { min-height: 88px; resize: vertical; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  button {
-    font: inherit; font-weight: 700; padding: 14px; border: 0; border-radius: 8px;
-    background: var(--navy); color: #fff; cursor: pointer;
+  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 3px solid #f2c94c; outline-offset: 1px;
   }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  h2 { font-size: 18px; margin: 0 0 12px; }
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  .item { padding: 12px 14px; }
-  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
-  .site { font-weight: 700; color: var(--text); }
-  .badge { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 999px; margin-inline-start: auto; }
-  .badge.open { color: var(--open); background: var(--open-bg); }
-  .badge.closed { color: var(--closed); background: var(--closed-bg); }
-  .finding { white-space: pre-wrap; word-break: break-word; }
-  .empty { color: var(--muted); text-align: center; padding: 24px 0; }
-  .warn { color: #a12; font-size: 14px; }
-  .filter { margin-bottom: 12px; }
+  textarea { min-height: 84px; resize: vertical; }
+  .row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+
+  /* כפתורים מרובעים ולחיצים */
+  button, .btn {
+    font: inherit; font-weight: 600; border: 0; border-radius: 0; cursor: pointer;
+    box-shadow: var(--shadow); transition: transform .12s, box-shadow .12s;
+  }
+  button:hover:not(:disabled), .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-up); }
+  button:active:not(:disabled), .btn:active { transform: translateY(1px); box-shadow: none; }
+  button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  .primary { background: var(--steel); color: #fff; padding: 14px; font-size: 17px; }
+  .quiet { background: #fff; color: var(--steel); padding: 6px 10px; font-size: 14px; border: 1px solid var(--line); }
+  .hint { font-size: 14px; color: var(--graphite); margin: -4px 0 0; min-height: 1.5em; }
+
+  /* תמונה בטופס */
+  .photo-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .photo-pick input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .btn { display: inline-block; background: #fff; color: var(--steel); padding: 10px 14px; border: 1px solid var(--line); font-size: 15px; }
+  .preview { width: 64px; height: 64px; object-fit: cover; box-shadow: var(--shadow); }
+
+  /* בורר פרויקטים: צ'יפים בלי מסגרת */
+  .chips { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 16px; padding: 0; }
+  .chip {
+    background: none; box-shadow: none; padding: 4px 0; font-weight: 400; color: var(--graphite);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+  }
+  .chip:hover:not(:disabled) { box-shadow: none; color: var(--ink); }
+  .chip[aria-pressed=true] { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 6px; }
+
+  /* פרויקט */
+  .projects { display: grid; gap: 16px; }
+  .project > summary {
+    list-style: none; cursor: pointer; padding: 14px 16px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;
+  }
+  .project > summary::-webkit-details-marker { display: none; }
+  .p-name { font-size: 19px; font-weight: 700; overflow-wrap: anywhere; }
+  .p-meta { grid-column: 1 / -1; font-size: 14px; color: var(--graphite); }
+  .p-meta b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .p-meta .rust { color: var(--rust); }
+  .tag { font-size: 13px; font-weight: 700; padding: 2px 10px; white-space: nowrap; }
+  .tag.active { color: var(--amber); background: var(--amber-bg); }
+  .tag.done { color: var(--sage); background: var(--sage-bg); }
+  .tag.open { color: var(--rust); background: var(--rust-bg); }
+  .tag.closed { color: var(--concrete); background: var(--concrete-bg); }
+  .p-body { padding: 0 16px 16px; display: grid; gap: 16px; }
+  .p-actions { display: flex; justify-content: flex-start; }
+  .project.is-done > summary .p-name { color: var(--graphite); }
+
+  /* ביקור */
+  .visit { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 8px; }
+  .v-head { display: flex; align-items: baseline; gap: 10px; }
+  .v-num { font-family: var(--mono); font-size: 13px; color: #fff; background: var(--steel); padding: 1px 8px; }
+  .v-date { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .v-count { font-size: 14px; color: var(--graphite); margin-inline-start: auto; }
+
+  .finding { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; }
+  .finding + .finding { border-top: 1px dashed var(--line); }
+  .f-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .finding.closed .f-text { color: var(--concrete); }
+  .thumb {
+    grid-column: 1 / -1; width: 112px; height: 84px; padding: 0; background: var(--concrete-bg);
+    display: block;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .empty { color: var(--graphite); text-align: center; padding: 32px 16px; background: var(--card); box-shadow: var(--shadow); }
+
+  /* צפייה בתמונה */
+  dialog { border: 0; padding: 0; background: transparent; max-width: 100vw; max-height: 100vh; }
+  dialog::backdrop { background: rgba(10, 12, 16, .88); }
+  dialog img { display: block; max-width: 96vw; max-height: 86vh; object-fit: contain; }
+  .x {
+    position: fixed; top: 12px; left: 12px; width: 44px; height: 44px;
+    background: #fff; color: var(--ink); font-size: 26px; line-height: 1; padding: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
 </style>
 </head>
 <body>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#" id="home">יומן ביקורי אתר</a>
+    <span class="saved" id="saved" role="status" aria-live="polite">נשמר</span>
+  </div>
+</header>
+
 <main>
-  <header>
-    <h1>יומן ביקורי אתר</h1>
-    <span class="count" id="count"></span>
-  </header>
+  <div class="summary" id="summary"></div>
+  <div class="notice alert" id="notice" hidden></div>
 
   <form id="form" novalidate>
+    <h2 class="form-title">ממצא חדש</h2>
     <div class="row">
-      <label>תאריך
+      <label class="field"><span>תאריך הביקור</span>
         <input type="date" id="date" required>
       </label>
-      <label>סטטוס
+      <label class="field"><span>סטטוס הממצא</span>
         <select id="status">
           <option value="open">פתוח</option>
           <option value="closed">סגור</option>
         </select>
       </label>
     </div>
-    <label>אתר
-      <input type="text" id="site" list="sites" autocomplete="off" placeholder="שם האתר" required>
+    <label class="field"><span>פרויקט</span>
+      <input type="text" id="site" list="sites" autocomplete="off" placeholder="שם הפרויקט או האתר" required>
       <datalist id="sites"></datalist>
     </label>
-    <label>ממצא
+    <label class="field"><span>ממצא</span>
       <textarea id="finding" placeholder="מה ראית באתר" required></textarea>
     </label>
-    <button type="submit" id="add" disabled>הוסף</button>
-    <span class="warn" id="warn" hidden>שימי לב: הדפדפן לא מאפשר שמירה, והנתונים יימחקו ברענון.</span>
+    <div class="photo-pick">
+      <label class="btn" for="photo" id="photo-label">צילום או תמונה</label>
+      <input type="file" id="photo" accept="image/*">
+      <img class="preview" id="preview" alt="התמונה שנבחרה" hidden>
+      <button type="button" class="quiet" id="photo-clear" hidden>הסר תמונה</button>
+    </div>
+    <button type="submit" class="primary" id="add" disabled>הוסף ממצא</button>
+    <p class="hint" id="hint"></p>
   </form>
 
-  <h2>ממצאים</h2>
-  <label class="filter">סינון לפי אתר
-    <select id="filter">
-      <option value="">כל האתרים</option>
-    </select>
-  </label>
-  <ul id="list"></ul>
+  <nav class="chips" id="chips" aria-label="בחירת פרויקט"></nav>
+  <div class="projects" id="projects"></div>
 </main>
+
+<dialog id="viewer" aria-label="תמונה">
+  <button type="button" class="x" id="viewer-close" aria-label="סגור">&times;</button>
+  <img id="viewer-img" alt="">
+</dialog>
 
 <script>
 (function () {
+  "use strict";
   var KEY = "site-visit-log.v1";
+  var PKEY = "site-visit-log.projects.v1";
   var LAST_SITE = "site-visit-log.lastSite";
-  var canStore = true;
+  var BACKUP_PREFIX = KEY + ".corrupt.";
 
-  var form = document.getElementById("form");
-  var dateEl = document.getElementById("date");
-  var siteEl = document.getElementById("site");
-  var findingEl = document.getElementById("finding");
-  var statusEl = document.getElementById("status");
-  var addBtn = document.getElementById("add");
-  var listEl = document.getElementById("list");
-  var countEl = document.getElementById("count");
-  var sitesEl = document.getElementById("sites");
-  var filterEl = document.getElementById("filter");
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $("form"), dateEl = $("date"), siteEl = $("site"), findingEl = $("finding"),
+      statusEl = $("status"), addBtn = $("add"), hintEl = $("hint"), photoEl = $("photo"),
+      previewEl = $("preview"), photoClear = $("photo-clear"), photoLabel = $("photo-label"),
+      chipsEl = $("chips"), projectsEl = $("projects"), summaryEl = $("summary"),
+      noticeEl = $("notice"), savedEl = $("saved"), viewer = $("viewer"), viewerImg = $("viewer-img");
 
-  function load() {
-    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
-    catch (e) { canStore = false; return []; }
+  var selected = "";          // פרויקט נבחר, "" = הכול
+  var openState = {};         // אילו פרויקטים פתוחים בתצוגה
+  var notices = {};
+  var pendingPhoto = null;    // קובץ שנבחר בטופס
+  var thumbCache = {};        // מזהה תמונה -> כתובת מקומית
+
+  /* ---------- אחסון ---------- */
+
+  var canStore = (function () {
+    try { localStorage.setItem(KEY + ".probe", "1"); localStorage.removeItem(KEY + ".probe"); return true; }
+    catch (e) { return false; }
+  })();
+  var memory = { items: [], projects: {} }; // גיבוי בזיכרון כשהאחסון חסום
+
+  function setNotice(id, text) {
+    if (text) notices[id] = text; else delete notices[id];
+    var all = Object.keys(notices).map(function (k) { return notices[k]; });
+    noticeEl.textContent = all.join(" ");
+    noticeEl.hidden = !all.length;
   }
-  function save(items) {
-    try { localStorage.setItem(KEY, JSON.stringify(items)); }
-    catch (e) { canStore = false; }
+
+  // תיקון 2: נתונים פגומים נשמרים בגיבוי לפני כל כתיבה, וההודעה מדויקת
+  function backupCorrupt(raw) {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k.indexOf(BACKUP_PREFIX) === 0 && localStorage.getItem(k) === raw) return k;
+      }
+      var key = BACKUP_PREFIX + Date.now();
+      localStorage.setItem(key, raw);
+      return key;
+    } catch (e) { return null; }
   }
+
+  function readItems() {
+    if (!canStore) return memory.items.slice();
+    var raw = localStorage.getItem(KEY);
+    if (!raw) return [];
+    try {
+      var data = JSON.parse(raw);
+      if (!Array.isArray(data)) throw new Error("not an array");
+      setNotice("corrupt", "");
+      return data;
+    } catch (e) {
+      var where = backupCorrupt(raw);
+      setNotice("corrupt", where
+        ? "הנתונים השמורים פגומים ולא נקראו. עותק מלא שלהם נשמר בגיבוי (" + where + "), וממצאים חדשים יישמרו כרגיל."
+        : "הנתונים השמורים פגומים ולא נקראו, והגיבוי נכשל. אל תוסיפי ממצאים לפני שנבדוק אותם.");
+      return [];
+    }
+  }
+
+  function readProjects() {
+    if (!canStore) return Object.assign({}, memory.projects);
+    try {
+      var p = JSON.parse(localStorage.getItem(PKEY) || "{}");
+      return p && typeof p === "object" && !Array.isArray(p) ? p : {};
+    } catch (e) { return {}; }
+  }
+
+  function write(key, value) {
+    if (!canStore) {
+      if (key === KEY) memory.items = value; else memory.projects = value;
+      return true;
+    }
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch (e) {
+      setNotice("full", "השמירה נכשלה: האחסון בטלפון מלא. הממצא לא נשמר.");
+      return false;
+    }
+  }
+
+  // תיקון 1: קוראים מחדש מהאחסון רגע לפני כל כתיבה, כך ששתי לשוניות לא דורסות זו את זו
+  function addItem(item) {
+    var items = readItems();
+    if (notices.corrupt && !backupExists()) return false;
+    items.push(item);
+    return write(KEY, items);
+  }
+  function backupExists() {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        if (localStorage.key(i).indexOf(BACKUP_PREFIX) === 0) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  function setProjectStatus(name, status) {
+    var p = readProjects();
+    p[name] = { status: status, updatedAt: new Date().toISOString() };
+    return write(PKEY, p);
+  }
+
+  /* ---------- תמונות: IndexedDB ---------- */
+
+  var dbPromise = null;
+  function db() {
+    if (!dbPromise) {
+      dbPromise = new Promise(function (res, rej) {
+        if (!window.indexedDB) return rej(new Error("no indexedDB"));
+        var r = indexedDB.open("site-visit-log", 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore("photos"); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+      });
+    }
+    return dbPromise;
+  }
+  function putPhoto(id, blob) {
+    return db().then(function (d) {
+      return new Promise(function (res, rej) {
+        var tx = d.transaction("photos", "readwrite");
+        tx.objectStore("photos").put(blob, id);
+        tx.oncomplete = function () { res(); };
+        tx.onerror = function () { rej(tx.error); };
+      });
+    });
+  }
+  function getPhoto(id) {
+    return db().then(function (d) {
+      return new Promise(function (res, rej) {
+        var r = d.transaction("photos").objectStore("photos").get(id);
+        r.onsuccess = function () { res(r.result || null); };
+        r.onerror = function () { rej(r.error); };
+      });
+    });
+  }
+
+  // מקטינים לצלע ארוכה של 1600 פיקסלים, כדי שעשרות תמונות ייכנסו בטלפון
+  function compress(file) {
+    return new Promise(function (res) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var max = 1600, w = img.naturalWidth, h = img.naturalHeight;
+        var s = Math.min(1, max / Math.max(w, h));
+        var c = document.createElement("canvas");
+        c.width = Math.round(w * s); c.height = Math.round(h * s);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { res(b || file); }, "image/jpeg", 0.8);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); res(file); };
+      img.src = url;
+    });
+  }
+
+  /* ---------- עזרים ---------- */
+
   function today() {
     var d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 10);
   }
-  function formatDate(iso) {
-    var p = iso.split("-");
-    return p[2] + "." + p[1] + "." + p[0];
+  function formatDate(iso) { var p = iso.split("-"); return p[2] + "." + p[1] + "." + p[0]; }
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
   }
-  function newId() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  var savedTimer;
+  function flashSaved() {
+    savedEl.classList.add("show");
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(function () { savedEl.classList.remove("show"); }, 1600);
   }
 
-  var items = load();
+  /* ---------- מודל: פרויקטים וביקורים ---------- */
+
+  function buildProjects(items, statuses) {
+    var map = {};
+    items.forEach(function (it) {
+      var p = map[it.site] || (map[it.site] = { name: it.site, visits: {}, open: 0, total: 0, last: "" });
+      (p.visits[it.date] || (p.visits[it.date] = [])).push(it);
+      p.total++;
+      if (it.status === "open") p.open++;
+      if (it.date > p.last) p.last = it.date;
+    });
+    return Object.keys(map).map(function (name) {
+      var p = map[name];
+      p.status = (statuses[name] && statuses[name].status) || "active";
+      // מספור ביקורים לפי סדר התאריכים: הביקור הראשון הוא 1
+      p.visitList = Object.keys(p.visits).sort().map(function (date, i) {
+        var f = p.visits[date].slice().sort(function (a, b) {
+          if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+          return a.createdAt < b.createdAt ? -1 : 1;
+        });
+        return { num: i + 1, date: date, findings: f };
+      }).reverse(); // החדש למעלה
+      return p;
+    }).sort(function (a, b) {
+      if (a.status !== b.status) return a.status === "active" ? -1 : 1;
+      if (a.last !== b.last) return a.last < b.last ? 1 : -1;
+      return a.name.localeCompare(b.name, "he");
+    });
+  }
+
+  /* ---------- תצוגה ---------- */
 
   function render() {
-    // פתוחים קודם, ובתוך כל קבוצה החדש ביותר למעלה
-    var selected = filterEl.value;
-    var visible = selected ? items.filter(function (i) { return i.site === selected; }) : items;
-    var sorted = visible.slice().sort(function (a, b) {
-      if (a.status !== b.status) return a.status === "open" ? -1 : 1;
-      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-      return a.createdAt < b.createdAt ? 1 : -1;
-    });
+    var items = readItems();
+    var projects = buildProjects(items, readProjects());
+    if (selected && !projects.some(function (p) { return p.name === selected; })) selected = "";
+    var visible = selected ? projects.filter(function (p) { return p.name === selected; }) : projects;
 
-    listEl.innerHTML = "";
-    if (!sorted.length) {
-      var li = document.createElement("li");
-      li.className = "empty";
-      li.textContent = "עדיין אין ממצאים. מלאי את הטופס ולחצי \"הוסף\".";
-      listEl.appendChild(li);
-    }
-    sorted.forEach(function (it) {
-      var li = document.createElement("li");
-      li.className = "item";
+    // סיכום
+    summaryEl.innerHTML = "";
+    var openCount = 0, visitCount = 0, active = 0;
+    visible.forEach(function (p) { openCount += p.open; visitCount += p.visitList.length; if (p.status === "active") active++; });
+    [[selected ? "ממצאים פתוחים ב" + selected : "ממצאים פתוחים", openCount, "rust"],
+     ["ביקורים", visitCount, ""],
+     [selected ? "סטטוס" : "פרויקטים בתהליך", selected ? (visible[0] && visible[0].status === "done" ? "הסתיים" : "בתהליך") : active, ""]]
+      .forEach(function (s) {
+        var d = el("div", "stat");
+        d.append(el("span", "label", s[0]), el("span", "num " + s[2], String(s[1])));
+        summaryEl.appendChild(d);
+      });
 
-      var meta = document.createElement("div");
-      meta.className = "meta";
-      var date = document.createElement("span");
-      date.textContent = formatDate(it.date);
-      var site = document.createElement("span");
-      site.className = "site";
-      site.textContent = it.site;
-      var badge = document.createElement("span");
-      badge.className = "badge " + it.status;
-      badge.textContent = it.status === "open" ? "פתוח" : "סגור";
-      meta.append(date, site, badge);
-
-      var finding = document.createElement("div");
-      finding.className = "finding";
-      finding.textContent = it.finding;
-
-      li.append(meta, finding);
-      listEl.appendChild(li);
-    });
-
-    var open = visible.filter(function (i) { return i.status === "open"; }).length;
-    countEl.innerHTML = "פתוחים: <b>" + open + "</b> מתוך " + visible.length;
-
-    var sites = Array.from(new Set(items.map(function (i) { return i.site; })));
+    // הצעות בשדה הפרויקט
+    var sitesEl = $("sites");
     sitesEl.innerHTML = "";
-    sites.forEach(function (s) {
-      var o = document.createElement("option");
-      o.value = s;
-      sitesEl.appendChild(o);
+    projects.forEach(function (p) { var o = document.createElement("option"); o.value = p.name; sitesEl.appendChild(o); });
+
+    // בורר פרויקטים
+    chipsEl.innerHTML = "";
+    chipsEl.hidden = projects.length < 2;
+    [""].concat(projects.map(function (p) { return p.name; })).forEach(function (name) {
+      var b = el("button", "chip", name || "הכול");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(selected === name));
+      b.addEventListener("click", function () { selected = name; render(); });
+      chipsEl.appendChild(b);
     });
 
-    filterEl.innerHTML = "";
-    var all = document.createElement("option");
-    all.value = "";
-    all.textContent = "כל האתרים";
-    filterEl.appendChild(all);
-    sites.slice().sort().forEach(function (s) {
-      var o = document.createElement("option");
-      o.value = s;
-      o.textContent = s;
-      filterEl.appendChild(o);
-    });
-    filterEl.value = selected;
+    // פרויקטים
+    projectsEl.innerHTML = "";
+    if (!projects.length) {
+      projectsEl.appendChild(el("div", "empty", "עדיין אין ממצאים. מלאי את הטופס ולחצי \"הוסף ממצא\". כל פרויקט ייפתח כאן אוטומטית, עם הביקורים שלו ממוספרים לפי תאריך."));
+    }
+    visible.forEach(function (p) {
+      var det = el("details", "project" + (p.status === "done" ? " is-done" : ""));
+      det.open = openState[p.name] != null ? openState[p.name] : (p.status === "active" || !!selected);
+      det.addEventListener("toggle", function () { openState[p.name] = det.open; });
 
-    document.getElementById("warn").hidden = canStore;
+      var sum = el("summary");
+      sum.append(el("span", "p-name", p.name), el("span", "tag " + p.status, p.status === "done" ? "הסתיים" : "בתהליך"));
+      var meta = el("span", "p-meta");
+      meta.innerHTML = "<b></b> ביקורים · <b class=\"rust\"></b> ממצאים פתוחים מתוך <b></b> · ביקור אחרון <b></b>";
+      var bs = meta.querySelectorAll("b");
+      bs[0].textContent = p.visitList.length; bs[1].textContent = p.open;
+      bs[2].textContent = p.total; bs[3].textContent = formatDate(p.last);
+      sum.appendChild(meta);
+      det.appendChild(sum);
+
+      var body = el("div", "p-body");
+      var actions = el("div", "p-actions");
+      var toggle = el("button", "quiet", p.status === "done" ? "החזר לבתהליך" : "סמן שהפרויקט הסתיים");
+      toggle.type = "button";
+      toggle.addEventListener("click", function () {
+        if (setProjectStatus(p.name, p.status === "done" ? "active" : "done")) {
+          openState[p.name] = p.status === "done"; // פרויקט שחזר לתהליך נפתח, פרויקט שהסתיים מתקפל
+          flashSaved(); render();
+        }
+      });
+      actions.appendChild(toggle);
+      body.appendChild(actions);
+
+      p.visitList.forEach(function (v) {
+        var vs = el("section", "visit");
+        var head = el("div", "v-head");
+        head.append(el("span", "v-num", "ביקור " + v.num), el("span", "v-date", formatDate(v.date)),
+          el("span", "v-count", v.findings.length === 1 ? "ממצא אחד" : v.findings.length + " ממצאים"));
+        vs.appendChild(head);
+        v.findings.forEach(function (f) {
+          var row = el("div", "finding " + f.status);
+          row.append(el("div", "f-text", f.finding), el("span", "tag " + f.status, f.status === "open" ? "פתוח" : "סגור"));
+          if (f.photoId) {
+            var tb = el("button", "thumb");
+            tb.type = "button";
+            tb.setAttribute("aria-label", "הגדלת התמונה");
+            var img = el("img");
+            img.alt = "תמונה מהביקור";
+            img.dataset.photo = f.photoId;
+            tb.appendChild(img);
+            tb.addEventListener("click", function () { openViewer(f.photoId); });
+            row.appendChild(tb);
+          }
+          vs.appendChild(row);
+        });
+        body.appendChild(vs);
+      });
+      det.appendChild(body);
+      projectsEl.appendChild(det);
+    });
+
+    loadThumbs();
   }
+
+  function photoUrl(id) {
+    if (thumbCache[id]) return Promise.resolve(thumbCache[id]);
+    return getPhoto(id).then(function (blob) {
+      if (!blob) return null;
+      return (thumbCache[id] = URL.createObjectURL(blob));
+    });
+  }
+  function loadThumbs() {
+    projectsEl.querySelectorAll("img[data-photo]").forEach(function (img) {
+      photoUrl(img.dataset.photo).then(function (u) {
+        if (u) img.src = u; else img.alt = "התמונה לא נמצאה בטלפון הזה";
+      }).catch(function () { img.alt = "התמונה לא נטענה"; });
+    });
+  }
+  function openViewer(id) {
+    photoUrl(id).then(function (u) {
+      if (!u) return;
+      viewerImg.src = u;
+      if (viewer.showModal) viewer.showModal(); else viewer.setAttribute("open", "");
+    });
+  }
+  $("viewer-close").addEventListener("click", function () { viewer.close(); });
+  viewer.addEventListener("click", function (e) { if (e.target === viewer) viewer.close(); });
+
+  /* ---------- טופס ---------- */
 
   function validate() {
-    addBtn.disabled = !(dateEl.value && siteEl.value.trim() && findingEl.value.trim());
+    var missing = [];
+    if (!dateEl.value) missing.push("תאריך");
+    if (!siteEl.value.trim()) missing.push("פרויקט");
+    if (!findingEl.value.trim()) missing.push("ממצא");
+    addBtn.disabled = missing.length > 0 || form.dataset.busy === "1";
+    // רמז רק כשהתחילו לכתוב ממצא ומשהו אחר חסר; טופס שמחכה לממצא הבא לא צריך הערה
+    hintEl.textContent = findingEl.value.trim() && missing.length ? "חסר: " + missing.join(", ") : "";
   }
 
-  filterEl.addEventListener("change", render);
+  photoEl.addEventListener("change", function () {
+    var f = photoEl.files && photoEl.files[0];
+    pendingPhoto = f || null;
+    if (previewEl.src) URL.revokeObjectURL(previewEl.src);
+    if (f) { previewEl.src = URL.createObjectURL(f); }
+    previewEl.hidden = !f; photoClear.hidden = !f;
+    photoLabel.textContent = f ? "החלף תמונה" : "צילום או תמונה";
+  });
+  function clearPhoto() {
+    photoEl.value = ""; pendingPhoto = null;
+    if (previewEl.src) URL.revokeObjectURL(previewEl.src);
+    previewEl.removeAttribute("src");
+    previewEl.hidden = true; photoClear.hidden = true;
+    photoLabel.textContent = "צילום או תמונה";
+  }
+  photoClear.addEventListener("click", clearPhoto);
+
   form.addEventListener("input", validate);
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     validate();
     if (addBtn.disabled) return;
+    form.dataset.busy = "1"; validate();
 
     var site = siteEl.value.trim();
-    items.push({
-      id: newId(),
-      date: dateEl.value,
-      site: site,
-      finding: findingEl.value.trim(),
-      status: statusEl.value,
-      createdAt: new Date().toISOString(),
+    var item = {
+      id: newId(), date: dateEl.value, site: site, finding: findingEl.value.trim(),
+      status: statusEl.value, createdAt: new Date().toISOString(),
       closedAt: statusEl.value === "closed" ? new Date().toISOString() : null
+    };
+
+    var photoStep = pendingPhoto
+      ? compress(pendingPhoto).then(function (blob) {
+          var pid = "p_" + item.id;
+          return putPhoto(pid, blob).then(function () { item.photoId = pid; setNotice("photo", ""); });
+        }).catch(function () {
+          setNotice("photo", "התמונה לא נשמרה, כי הדפדפן חוסם אחסון תמונות. הממצא עצמו נשמר.");
+        })
+      : Promise.resolve();
+
+    photoStep.then(function () {
+      var ok = addItem(item);
+      form.dataset.busy = "";
+      if (!ok) { validate(); render(); return; }
+      setNotice("full", "");
+      try { localStorage.setItem(LAST_SITE, site); } catch (err) {}
+      // פרויקט שהסתיים וקיבל ממצא חדש חוזר לתהליך
+      var ps = readProjects();
+      if (ps[site] && ps[site].status === "done") setProjectStatus(site, "active");
+      if (selected && selected !== site) selected = "";
+      openState[site] = true;
+
+      // התאריך והפרויקט נשארים, כדי להוסיף עוד ממצא מאותו ביקור
+      findingEl.value = ""; statusEl.value = "open"; clearPhoto();
+      validate(); render(); flashSaved();
+      findingEl.focus();
     });
-    save(items);
-    try { localStorage.setItem(LAST_SITE, site); } catch (err) {}
-
-    // התאריך והאתר נשארים, כדי להוסיף עוד ממצא מאותו ביקור
-    // אם הסינון מסתיר את הממצא החדש, חוזרים לכל האתרים כדי שיופיע
-    if (filterEl.value && filterEl.value !== site) filterEl.value = "";
-
-    findingEl.value = "";
-    statusEl.value = "open";
-    validate();
-    render();
-    findingEl.focus();
   });
 
+  // לשונית אחרת שמרה: מעדכנים את התצוגה כאן
+  window.addEventListener("storage", function (e) {
+    if (e.key === KEY || e.key === PKEY || e.key === null) render();
+  });
+
+  $("home").addEventListener("click", function (e) {
+    e.preventDefault(); selected = ""; render(); window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  if (!canStore) setNotice("store", "שימי לב: הדפדפן לא מאפשר שמירה, והנתונים יימחקו כשתסגרי את הדף.");
   dateEl.value = today();
   try { siteEl.value = localStorage.getItem(LAST_SITE) || ""; } catch (e) {}
   validate();
