@@ -141,6 +141,9 @@
   .finding + .finding { border-top: 1px dashed var(--line); }
   .f-text { white-space: pre-wrap; overflow-wrap: anywhere; }
   .finding.closed .f-text { color: var(--concrete); }
+  .f-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .f-close { background: var(--steel); color: #fff; padding: 6px 12px; font-size: 14px; }
+  .v-actions { display: flex; }
   .thumb {
     grid-column: 1 / -1; width: 112px; height: 84px; padding: 0; background: var(--concrete-bg);
     display: block;
@@ -315,6 +318,20 @@
       }
     } catch (e) {}
     return false;
+  }
+  // שינוי ממצאים קיימים: גם כאן קוראים מחדש לפני כתיבה
+  function updateItems(ids, status) {
+    var items = readItems();
+    if (notices.corrupt) return false;
+    var now = new Date().toISOString(), changed = false;
+    items.forEach(function (it) {
+      if (ids.indexOf(it.id) !== -1 && it.status !== status) {
+        it.status = status;
+        it.closedAt = status === "closed" ? now : null;
+        changed = true;
+      }
+    });
+    return changed ? write(KEY, items) : true;
   }
   function setProjectStatus(name, status) {
     var p = readProjects();
@@ -500,13 +517,34 @@
 
       p.visitList.forEach(function (v) {
         var vs = el("section", "visit");
+        var openIds = v.findings.filter(function (f) { return f.status === "open"; }).map(function (f) { return f.id; });
         var head = el("div", "v-head");
-        head.append(el("span", "v-num", "ביקור " + v.num), el("span", "v-date", formatDate(v.date)),
-          el("span", "v-count", v.findings.length === 1 ? "ממצא אחד" : v.findings.length + " ממצאים"));
+        head.append(el("span", "v-num", "ביקור " + v.num), el("span", "v-date", formatDate(v.date)));
+        // ביקור סגור = כל הממצאים שלו סגורים
+        head.appendChild(openIds.length
+          ? el("span", "v-count", (openIds.length === 1 ? "פתוח אחד" : openIds.length + " פתוחים") + " מתוך " + v.findings.length)
+          : el("span", "tag closed v-count", "ביקור סגור"));
         vs.appendChild(head);
+        if (openIds.length > 1) {
+          var va = el("div", "v-actions");
+          var closeAll = el("button", "quiet", "סגור את כל הממצאים בביקור");
+          closeAll.type = "button";
+          closeAll.addEventListener("click", function () {
+            if (updateItems(openIds, "closed")) { flashSaved(); render(); }
+          });
+          va.appendChild(closeAll);
+          vs.appendChild(va);
+        }
         v.findings.forEach(function (f) {
           var row = el("div", "finding " + f.status);
           row.append(el("div", "f-text", f.finding), el("span", "tag " + f.status, f.status === "open" ? "פתוח" : "סגור"));
+          var fa = el("div", "f-actions");
+          var tg = el("button", f.status === "open" ? "f-close" : "quiet", f.status === "open" ? "סגור ממצא" : "פתח מחדש");
+          tg.type = "button";
+          tg.addEventListener("click", function () {
+            if (updateItems([f.id], f.status === "open" ? "closed" : "open")) { flashSaved(); render(); }
+          });
+          fa.appendChild(tg);
           if (f.photoId) {
             var tb = el("button", "thumb");
             tb.type = "button";
@@ -518,6 +556,7 @@
             tb.addEventListener("click", function () { openViewer(f.photoId); });
             row.appendChild(tb);
           }
+          row.appendChild(fa);
           vs.appendChild(row);
         });
         body.appendChild(vs);
