@@ -58,6 +58,7 @@
   .finding { white-space: pre-wrap; word-break: break-word; }
   .empty { color: var(--muted); text-align: center; padding: 24px 0; }
   .warn { color: #a12; font-size: 14px; }
+  .filter { margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -91,6 +92,11 @@
   </form>
 
   <h2>ממצאים</h2>
+  <label class="filter">סינון לפי אתר
+    <select id="filter">
+      <option value="">כל האתרים</option>
+    </select>
+  </label>
   <ul id="list"></ul>
 </main>
 
@@ -109,6 +115,7 @@
   var listEl = document.getElementById("list");
   var countEl = document.getElementById("count");
   var sitesEl = document.getElementById("sites");
+  var filterEl = document.getElementById("filter");
 
   function load() {
     try { return JSON.parse(localStorage.getItem(KEY)) || []; }
@@ -135,7 +142,9 @@
 
   function render() {
     // פתוחים קודם, ובתוך כל קבוצה החדש ביותר למעלה
-    var sorted = items.slice().sort(function (a, b) {
+    var selected = filterEl.value;
+    var visible = selected ? items.filter(function (i) { return i.site === selected; }) : items;
+    var sorted = visible.slice().sort(function (a, b) {
       if (a.status !== b.status) return a.status === "open" ? -1 : 1;
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
       return a.createdAt < b.createdAt ? 1 : -1;
@@ -172,8 +181,8 @@
       listEl.appendChild(li);
     });
 
-    var open = items.filter(function (i) { return i.status === "open"; }).length;
-    countEl.innerHTML = "פתוחים: <b>" + open + "</b> מתוך " + items.length;
+    var open = visible.filter(function (i) { return i.status === "open"; }).length;
+    countEl.innerHTML = "פתוחים: <b>" + open + "</b> מתוך " + visible.length;
 
     var sites = Array.from(new Set(items.map(function (i) { return i.site; })));
     sitesEl.innerHTML = "";
@@ -183,6 +192,19 @@
       sitesEl.appendChild(o);
     });
 
+    filterEl.innerHTML = "";
+    var all = document.createElement("option");
+    all.value = "";
+    all.textContent = "כל האתרים";
+    filterEl.appendChild(all);
+    sites.slice().sort().forEach(function (s) {
+      var o = document.createElement("option");
+      o.value = s;
+      o.textContent = s;
+      filterEl.appendChild(o);
+    });
+    filterEl.value = selected;
+
     document.getElementById("warn").hidden = canStore;
   }
 
@@ -190,6 +212,7 @@
     addBtn.disabled = !(dateEl.value && siteEl.value.trim() && findingEl.value.trim());
   }
 
+  filterEl.addEventListener("change", render);
   form.addEventListener("input", validate);
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -210,6 +233,9 @@
     try { localStorage.setItem(LAST_SITE, site); } catch (err) {}
 
     // התאריך והאתר נשארים, כדי להוסיף עוד ממצא מאותו ביקור
+    // אם הסינון מסתיר את הממצא החדש, חוזרים לכל האתרים כדי שיופיע
+    if (filterEl.value && filterEl.value !== site) filterEl.value = "";
+
     findingEl.value = "";
     statusEl.value = "open";
     validate();
